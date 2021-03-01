@@ -47,7 +47,7 @@
 -type watch_opts() :: #{checkpoint := checkpoint()}.
 
 start_link(Shard, Config) ->
-    gen_server:start_link({local, Shard}, ?MODULE, {Shard, Config}).
+    gen_server:start_link({local, Shard}, ?MODULE, {Shard, Config}, []).
 
 -spec watch(shard(), watcher(), watch_opts()) -> ok.
 watch(Shard, Watcher, Opts) ->
@@ -104,7 +104,7 @@ do_unwatch(#{agents := Agents} = St, Watcher) ->
         false -> ok;
         Pid   -> emqx_rlog_agent:stop(Pid)
     end,
-    St#{agents := maps:withoug([Watcher], Agents)}.
+    St#{agents := maps:without([Watcher], Agents)}.
 
 start_agent(Shard, Watcher, Opts) ->
     {ok, Pid} = emqx_rlog_agent:start_link(Shard, Watcher, Opts),
@@ -113,4 +113,3 @@ start_agent(Shard, Watcher, Opts) ->
 start_cleaner(Shard, Config) ->
     {ok, Pid} = emqx_rlog_cleaner:start_link(Shard, Config),
     Pid.
-

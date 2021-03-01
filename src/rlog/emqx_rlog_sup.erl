@@ -18,9 +18,12 @@
 
 -behaviour(supervisor).
 
--export([init/1]).
+-export([init/1, start_link/0]).
 
 -include("emqx_rlog.hrl").
+
+start_link() ->
+    supervisor:start_link(?MODULE, []).
 
 init([]) ->
     SupFlags = #{ strategy => one_for_all

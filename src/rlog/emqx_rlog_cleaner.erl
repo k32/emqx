@@ -42,7 +42,7 @@
 -define(undef, undefined).
 
 start_link(Shard, Config) ->
-    gen_server:start_link(?MODULE, {Shard, Config}).
+    gen_server:start_link(?MODULE, {Shard, Config}, []).
 
 stop(Pid) ->
     gen_server:call(Pid, stop, infinity).
