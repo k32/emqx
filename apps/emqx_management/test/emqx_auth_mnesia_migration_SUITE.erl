@@ -26,7 +26,7 @@
 -include_lib("emqx_auth_mnesia/include/emqx_auth_mnesia.hrl").
 
 all() ->
-    [{group, Id} || {Id, _, _} <- groups()].
+    [{group, Id} || {Id, _, _} <- groups()] ++ [t_import_4_0].
 
 groups() ->
     [{username, [], cases()}, {clientid, [], cases()}].
@@ -61,10 +61,21 @@ end_per_testcase(_, _Config) ->
     ok.
 
 t_import_4_2(Config) ->
-    test_import(Config, "v4.2.json").
+    test_import(Config, "v4.2.9.json"),
+    test_clientid_import().
 
 t_import_4_1(Config) ->
-    test_import(Config, "v4.1.json").
+    test_import(Config, "v4.1.5.json"),
+    test_clientid_import().
+
+t_import_4_0(Config) ->
+    mnesia:clear_table(emqx_acl),
+    mnesia:clear_table(emqx_user),
+    Filename = filename:join(proplists:get_value(data_dir, Config), "v4.0.7.json"),
+    Overrides = emqx_json:encode(#{<<"auth.mnesia.as">> => atom_to_binary(clientid)}),
+    ?assertMatch(ok, emqx_mgmt_data_backup:import(Filename, Overrides)),
+    timer:sleep(100),
+    test_clientid_import().
 
 test_import(Config, File) ->
     Type = proplists:get_value(cred_type, Config),
@@ -86,12 +97,19 @@ test_import(Config, File) ->
                      access = allow
                     }],
                  lists:sort(Records)),
-    ?assertMatch([#emqx_user{
-                     login = {Type, <<"emqx_c">>}
-                    }], ets:tab2list(emqx_user)),
+    ?assertMatch([_, _], ets:tab2list(emqx_user)),
+    ?assertMatch([_], ets:lookup(emqx_user, {Type, <<"emqx_c">>})),
     Req = #{clientid => <<"blah">>}
           #{Type => <<"emqx_c">>,
             password => "emqx_p"
+           },
+    ?assertMatch({stop, #{auth_result := success}},
+                 emqx_auth_mnesia:check(Req, #{}, #{hash_type => sha256})).
+
+test_clientid_import() ->
+    [#emqx_user{password = _Pass}] = ets:lookup(emqx_user, {clientid, <<"emqx_clientid">>}),
+    Req = #{clientid => <<"emqx_clientid">>,
+            password => <<"emqx_p">>
            },
     ?assertMatch({stop, #{auth_result := success}},
                  emqx_auth_mnesia:check(Req, #{}, #{hash_type => sha256})).
